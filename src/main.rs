@@ -14,6 +14,7 @@ extern crate digest;
 extern crate uuid;
 extern crate regex;
 extern crate rustyline;
+extern crate blake2_rfc;
 
 extern crate grin_wallet;
 extern crate grin_keychain;

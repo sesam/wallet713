@@ -27,6 +27,7 @@ failure = "0.1"
 uuid = { version = "0.6", features = ["serde", "v4"] }
 regex = "1"
 rustyline = "3.0"
+blake2-rfc = "0.2"
 
 grin_core = { git = "https://github.com/mimblewimble/grin" }
 grin_wallet = { git = "https://github.com/mimblewimble/grin" }

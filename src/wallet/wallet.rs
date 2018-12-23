@@ -1,13 +1,15 @@
 use std::sync::Arc;
 
 use grin_util::Mutex;
-use grin_wallet::{display, controller, WalletBackend, WalletInst, WalletConfig, WalletSeed, HTTPNodeClient, NodeClient};
-use grin_wallet::lmdb_wallet::LMDBBackend;
+use grin_wallet::{display, WalletBackend, WalletInst, WalletConfig, WalletSeed, HTTPNodeClient, NodeClient};
 use grin_core::libtx::slate::Slate;
 use grin_keychain::keychain::ExtKeychain;
 
 use common::{Wallet713Error, Result};
 use common::config::Wallet713Config;
+
+use super::controller;
+use super::backend::LMDBBackend;
 
 pub struct Wallet {
     active_account: String,
@@ -140,15 +142,19 @@ impl Wallet {
 
     pub fn initiate_receive_tx(&self, amount: u64, num_outputs: usize) -> Result<Slate> {
         let wallet = self.get_wallet_instance()?;
-        let mut api = super::api::Wallet713ForeignAPI::new(wallet.clone());
-        let (slate, add_fn) = api.initiate_receive_tx(
-            Some(&self.active_account),
-            amount,
-            num_outputs,
-            None,
-        )?;
-        api.tx_add_outputs(&slate, add_fn)?;
-        Ok(slate)
+        let mut s: Slate = Slate::blank(0);
+        controller::foreign_single_use(wallet.clone(), |api| {
+            let (slate, add_fn) = api.initiate_receive_tx(
+                Some(&self.active_account),
+                amount,
+                num_outputs,
+                None,
+            )?;
+            api.tx_add_outputs(&slate, add_fn)?;
+            s = slate;
+            Ok(())
+        })?;
+        Ok(s)
     }
 
     pub fn repost(&self, id: u32, fluff: bool) -> Result<()> {
@@ -216,20 +222,20 @@ impl Wallet {
         }
 
         let wallet = self.get_wallet_instance()?;
-        let mut api = super::api::Wallet713OwnerAPI::new(wallet.clone());
-        let lock_fn = api.invoice_tx(
-            Some(&self.active_account),
-            slate,
-            10,
-            500,
-            1,
-            false,
-            None,
-        )?;
+
         controller::owner_single_use(wallet.clone(), |api| {
+            let lock_fn = api.invoice_tx(
+                Some(&self.active_account),
+                slate,
+                10,
+                500,
+                1,
+                false,
+                None,
+            )?;
             api.tx_lock_outputs(&slate, lock_fn)?;
             Ok(())
-        })?;
+        });
         Ok(())
     }
 
